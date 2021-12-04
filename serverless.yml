@@ -18,7 +18,7 @@ provider:
         "Fn::ImportValue": stageApiGateway-alParentResourceId
 functions:
   abstraction:
-    handler: src/handler/proxy.init
+    handler: src/handler.init
     events:
      - http:
          path: al/{proxy+}
