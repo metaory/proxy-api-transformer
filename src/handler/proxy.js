@@ -31,16 +31,18 @@ module.exports.init = async (event, ctx) => {
   if (cfg.transform) {
     log('Running Transform', cfg.transform)
     switch (typeof cfg.transform) {
-      case 'object':
-        log('Running Object Transform')
+      case 'object': log('Running Object Transform')
         out = transform(out, cfg.transform);
         break
-      case 'function':
-        log('Running Function Transform')
+      case 'function': log('Running Function Transform')
         out = cfg.transform(out)
         break
     }
   }
+
+  if (cfg.callback && typeof cfg.callback === 'function') {
+    cfg.callback(out)
+  } 
 
   return {
     headers: { 'Access-Control-Allow-Origin': '*', },
