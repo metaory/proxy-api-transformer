@@ -26,8 +26,7 @@ module.exports.init = async (event, ctx) => {
   const runnerFlow = (cfg.mode || 'PARALLEL').toLowerCase()
   log({runnerFlow})
 
-  let out
-  out = await runner[runnerFlow](cfg.jobs, {root, data, headers})
+  let out = await runner[runnerFlow](cfg.jobs, {root, data, headers})
 
   if (cfg.transform) {
     log('Running Transform', cfg.transform)

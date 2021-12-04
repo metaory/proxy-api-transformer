@@ -11,15 +11,7 @@ runner.run = (job) => {
     ...(_h.Authorization ? {Authorization: _h.Authorization} : {} )
   }
 
-  console.log(job)
-
-  return axios({
-    url,
-    method,
-    data,
-    headers,
-    timeout: 10000,
-  })
+  return axios({ url, method, data, headers, timeout: 10000 })
 }
 
 runner.parallel = async (jobs, {root, data, headers}) => {
