@@ -16,7 +16,7 @@ const cfg = {
     },
     jobs: [
       { // Get All Customers
-        path: "https://api-101.glitch.me/customers?per_page={$.page}&user_id={$.jwt.userId}",
+        path: "https://api-101.glitch.me/customers?per_page={$.query.page}&user_id={$.jwt.userId}",
         response: {
           customers: "$.data.customers",
           welcome: "$.welcome",
