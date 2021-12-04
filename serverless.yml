@@ -1,0 +1,29 @@
+service: proxy-api-transformer-fn
+
+frameworkVersion: '2'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  lambdaHashingVersion: 20201221
+  region: ap-southeast-1
+  role: ${self:custom.config.lambdaRoleArn}
+  apiGateway:
+    restApiId:
+      "Fn::ImportValue": stageApiGateway-restApiId
+    restApiRootResourceId:
+      "Fn::ImportValue": stageApiGateway-rootResourceId
+    restApiResources:
+      /al:
+        "Fn::ImportValue": stageApiGateway-alParentResourceId
+functions:
+  abstraction:
+    handler: src/handler/proxy.init
+    events:
+     - http:
+         path: al/{proxy+}
+         method: any
+
+plugins:
+  - serverless-offline
+
