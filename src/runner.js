@@ -3,8 +3,8 @@ const {JSONPath} = require('jsonpath-plus');
 const resolver = require('./resolver')
 const runner = {}
 
-runner.run = (job) => {
-  const {url, method, data, headers: _h, response} = job
+const run = (job) => {
+  const {url, method, data, headers: _h} = job
 
   const headers = {
     Accept: '*/*',
@@ -18,7 +18,7 @@ runner.parallel = async (jobs, {root, data, headers}) => {
   const promises = jobs.map(job => {
     console.log('\n==>', job, '!', {data,root})
     const url = resolver.resolveUrl(job.path, root)
-    return runner.run({ url, method: job.method, data, headers, response: job.response })
+    return run({ url, method: job.method, data, headers, response: job.response })
   })
   const results = (await Promise.all(promises)).map((x, i) => {
     console.log({x: x.data.length,i}, jobs[i].response)
@@ -43,7 +43,7 @@ runner.waterfall = async (jobs, {root, data, headers}) => {
   for (const job of jobs) {
     console.log('\n==>', job, {data,root})
     const url = resolver.resolveUrl(job.path, root)
-    const res = await runner.run({ url, method: job.method, data, headers, response: job.response })
+    const res = await run({ url, method: job.method, data, headers, response: job.response })
     out.push(res)
   }
   return out
