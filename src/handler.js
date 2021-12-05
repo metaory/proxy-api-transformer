@@ -14,6 +14,7 @@ module.exports.init = async (event, ctx) => {
   const key = `${httpMethod}:${proxy}`
   const cfg = { ...config[key] || { path: proxy, method: httpMethod } }
 
+  // Set $.jwt.* context
   if (headers['Authorization']) {
     const [,token] = headers['Authorization'].split(' ')
     root.jwt = jwt.decode(token,{complete: true}).payload
@@ -21,13 +22,17 @@ module.exports.init = async (event, ctx) => {
 
   log({key, proxy},cfg, {root})
 
+  // Default single job syntax handle
   if (!cfg.jobs) { cfg.jobs = [ cfg ] }
 
+  // Job Runner mode
   const runnerFlow = (cfg.mode || 'PARALLEL').toLowerCase()
   log({runnerFlow})
 
+  // Run all jobs
   let out = await runner[runnerFlow](cfg.jobs, {root, data, headers})
 
+  // Transform
   if (cfg.transform) {
     log('Running Transform', cfg.transform)
     switch (typeof cfg.transform) {
@@ -40,6 +45,7 @@ module.exports.init = async (event, ctx) => {
     }
   }
 
+  // Callback
   if (cfg.callback && typeof cfg.callback === 'function') {
     cfg.callback(out)
   } 
