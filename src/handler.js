@@ -1,9 +1,11 @@
+// const {JSONPath} = require('jsonpath-plus');
 const jwt = require('jsonwebtoken')
 const transform = require('jsonpath-object-transform');
 
-const config = require('../../config')
-const runner = require('../runner')
+const config = require('../config')
+const runner = require('./runner')
 const { log, clear } = console
+// const log = (msg, ...extra) => console.log(JSON.stringify(msg, null, 2), extra)
 
 module.exports.init = async (event, ctx) => {
   const { headers, queryStringParameters, httpMethod, pathParameters: {proxy} } = event
@@ -17,7 +19,8 @@ module.exports.init = async (event, ctx) => {
   // Set $.jwt.* context
   if (headers['Authorization']) {
     const [,token] = headers['Authorization'].split(' ')
-    root.jwt = jwt.decode(token,{complete: true}).payload
+    const decoded = jwt.decode(token,{complete: true}) || {}
+    root.jwt = decoded.payload || {}
   }
 
   log({key, proxy},cfg, {root})
@@ -30,9 +33,21 @@ module.exports.init = async (event, ctx) => {
   log({runnerFlow})
 
   // Run all jobs
-  let out = await runner[runnerFlow](cfg.jobs, {root, data, headers})
+  let out
+  try {
+    out = await runner[runnerFlow](cfg.jobs, {root, data, headers})
+  }
+  catch (err) {
+    console.error('ERR', err)
+    const { res } = err // TODO
+    return {
+      headers: { 'Access-Control-Allow-Origin': '*', },
+      statusCode: err.statusCode,
+      body: err.statusMessage
+    }
+  }
 
-  // Transform
+  // Transform final result
   if (cfg.transform) {
     log('Running Transform', cfg.transform)
     switch (typeof cfg.transform) {
@@ -56,4 +71,3 @@ module.exports.init = async (event, ctx) => {
     body: JSON.stringify(out, null, 2)
   }
 }
-

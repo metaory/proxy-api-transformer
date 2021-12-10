@@ -4,8 +4,6 @@ const resolver = {}
 resolver.resolveUrl = (tpl, data) => {
   let url = tpl
 
-  console.log({url, data})
-
   while (url.includes('{')) { 
     const a = url.indexOf('{')
     const b = url.indexOf('}')
@@ -20,5 +18,14 @@ resolver.resolveUrl = (tpl, data) => {
   return url
 }
 
+resolver.resolveObj = (obj, data) => {
+  return Object.keys(obj).reduce((acc, cur) => {
+    const [ result ] = JSONPath({path: obj[cur], json: data})
+
+    acc[cur] = result
+
+    return acc
+  }, {})
+}
 module.exports = resolver
 

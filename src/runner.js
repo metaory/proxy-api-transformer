@@ -3,27 +3,52 @@ const {JSONPath} = require('jsonpath-plus');
 const resolver = require('./resolver')
 const runner = {}
 
+// TODO
+axios.interceptors.response.use(function (response) {
+    return response;
+  }, function (error) {
+    console.log `????????????`
+    return Promise.reject(error);
+  });
+
+
 const run = (job) => {
-  const {url, method, data, headers: _h} = job
+  const {url, method, data, headers: _h, response} = job
 
   const headers = {
     Accept: '*/*',
-    ...(_h.Authorization ? {Authorization: _h.Authorization} : {} )
+     ...(_h.Authorization ? {Authorization: _h.Authorization} : {} )
   }
 
-  return axios({ url, method, data, headers, timeout: 10000 })
+ return axios({
+    url,
+    method,
+    data,
+    headers,
+    timeout: 10000,
+  })
 }
 
 runner.parallel = async (jobs, {root, data, headers}) => {
   const promises = jobs.map(job => {
     console.log('\n==>', job, '!', {data,root})
+
     const url = resolver.resolveUrl(job.path, root)
-    return run({ url, method: job.method, data, headers, response: job.response })
+
+    let body = data
+    if (job.request) { body = resolver.resolveObj(job.request, root) }
+
+    return run({ url, method: job.method, data: body, headers, response: job.response })
   })
+
   const results = (await Promise.all(promises)).map((x, i) => {
-    console.log({x: x.data.length,i}, jobs[i].response)
     if (!jobs[i].response) {
       return x.data
+    }
+
+    if (x.data.code && x.data.code !== '0000') {
+      if (jobs[i].error_response) jobs[i].response = jobs[i].error_response
+      else return x.data
     }
 
     let out = {}
@@ -34,10 +59,10 @@ runner.parallel = async (jobs, {root, data, headers}) => {
 
     return out
   })
+  
   return results.reduce((acc,cur) => ({...acc, ...cur}), {})
 }
 
-// TODO
 runner.waterfall = async (jobs, {root, data, headers}) => {
   let out = []
   for (const job of jobs) {
@@ -48,6 +73,5 @@ runner.waterfall = async (jobs, {root, data, headers}) => {
   }
   return out
 }
-
 module.exports = runner
 
