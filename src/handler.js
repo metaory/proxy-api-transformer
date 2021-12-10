@@ -9,12 +9,16 @@ const { log, clear } = console
 
 module.exports.init = async (event, ctx) => {
   const { headers, queryStringParameters, httpMethod, pathParameters: {proxy} } = event
+  log `+++++++++++++++++++++++++++++`
 
   const data = JSON.parse(event.body)
   const root = { query: queryStringParameters, body: data, jwt: {} }
 
   const key = `${httpMethod}:${proxy}`
-  const cfg = { ...config[key] || { path: proxy, method: httpMethod } }
+  const cfg = { ...config[key] }
+
+  // 404
+  if (!Object.keys(cfg).length) return { statusCode: 404 }
 
   // Set $.jwt.* context
   if (headers['Authorization']) {
@@ -28,18 +32,18 @@ module.exports.init = async (event, ctx) => {
   // Default single job syntax handle
   if (!cfg.jobs) { cfg.jobs = [ cfg ] }
 
-  // Job Runner mode
+// Job Runner mode
   const runnerFlow = (cfg.mode || 'PARALLEL').toLowerCase()
   log({runnerFlow})
 
-  // Run all jobs
+// Run all jobs
   let out
   try {
     out = await runner[runnerFlow](cfg.jobs, {root, data, headers})
   }
   catch (err) {
     console.error('ERR', err)
-    const { res } = err // TODO
+    const { res } = err
     return {
       headers: { 'Access-Control-Allow-Origin': '*', },
       statusCode: err.statusCode,
