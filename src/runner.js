@@ -2,7 +2,8 @@ const axios = require('axios')
 const {JSONPath} = require('jsonpath-plus');
 const resolver = require('./resolver')
 
-const signToken = (userId) => jwt.sign({ userId, foo: 'bar' }, 'shhhhh');
+const signToken = (userId) => require('jsonwebtoken').sign({ userId, foo: 'bar' }, 'shhhhh')
+
 const runner = {}
 
 // TODO
