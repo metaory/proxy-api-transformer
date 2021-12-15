@@ -7,18 +7,28 @@ const runner = require('./runner')
 const { log, clear } = console
 // const log = (msg, ...extra) => console.log(JSON.stringify(msg, null, 2), extra)
 
+const API_KEYS = { // TODO read from DB/Properties
+  '00000000-0000-0000-0000-000000000000': 'TENANT A',
+}
+
 module.exports.init = async (event, ctx) => {
   const { headers, queryStringParameters, httpMethod, pathParameters: {proxy} } = event
   log `+++++++++++++++++++++++++++++`
 
   const data = JSON.parse(event.body)
-  const root = { query: queryStringParameters, body: data, jwt: {} }
+  const root = { query: queryStringParameters || {}, body: data || {}, headers, jwt: {}, partner: 'NA', userId: 'NA' }
 
   const key = `${httpMethod}:${proxy}`
   const cfg = { ...config[key] }
+  console.log(headers)
 
   // 404
   if (!Object.keys(cfg).length) return { statusCode: 404 }
+  // 403
+  if (!Object.keys(API_KEYS).includes(headers['x-api-key'])) return { statusCode: 403 }
+
+  root.partner = API_KEYS[headers['x-api-key']]
+  root.userId = headers['x-user-id']
 
   // Set $.jwt.* context
   if (headers['Authorization']) {
@@ -32,22 +42,24 @@ module.exports.init = async (event, ctx) => {
   // Default single job syntax handle
   if (!cfg.jobs) { cfg.jobs = [ cfg ] }
 
-// Job Runner mode
+  // Job Runner mode
   const runnerFlow = (cfg.mode || 'PARALLEL').toLowerCase()
   log({runnerFlow})
 
-// Run all jobs
-  let out
+  // Run all jobs
+  let out, status
   try {
-    out = await runner[runnerFlow](cfg.jobs, {root, data, headers})
+    const res = await runner[runnerFlow](cfg.jobs, {root, data, headers})
+    out = res.data
+    status = res.status
   }
   catch (err) {
     console.error('ERR', err)
-    const { res } = err
+    const { response } = err
     return {
       headers: { 'Access-Control-Allow-Origin': '*', },
-      statusCode: err.statusCode,
-      body: err.statusMessage
+      statusCode: response ? response.status : 500,
+      body: response ? response.statusText : err.message,
     }
   }
 
@@ -59,7 +71,7 @@ module.exports.init = async (event, ctx) => {
         out = transform(out, cfg.transform);
         break
       case 'function': log('Running Function Transform')
-        out = cfg.transform(out)
+        out = cfg.transform({...root, ...out})
         break
     }
   }
@@ -71,7 +83,7 @@ module.exports.init = async (event, ctx) => {
 
   return {
     headers: { 'Access-Control-Allow-Origin': '*', },
-    statusCode: 200,
+    statusCode: status,
     body: JSON.stringify(out, null, 2)
   }
 }

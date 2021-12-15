@@ -20,9 +20,15 @@ resolver.resolveUrl = (tpl, data) => {
 
 resolver.resolveObj = (obj, data) => {
   return Object.keys(obj).reduce((acc, cur) => {
-    const [ result ] = JSONPath({path: obj[cur], json: data})
+    console.log({cur}, typeof obj[cur], obj[cur])
 
-    acc[cur] = result
+    if (typeof obj[cur] === 'object') {
+      acc[cur] = resolver.resolveObj(obj[cur], data)
+    }
+    else {
+      const [ result ] = JSONPath({path: obj[cur], json: data})
+      acc[cur] = result
+    }
 
     return acc
   }, {})
