@@ -1,12 +1,11 @@
 const axios = require('axios')
 const {JSONPath} = require('jsonpath-plus');
 const resolver = require('./resolver')
+const signToken = require('./service/legacyToken')
 
-const signToken = (userId) => require('jsonwebtoken').sign({ userId, foo: 'bar' }, 'shhhhh')
-
+const sleep = (ms = 100) => new Promise(resolve => setTimeout(() => resolve(), ms))
 const runner = {}
 
-// TODO
 axios.interceptors.response.use(function (response) {
     // Any status code that lie within the range of 2xx cause this function to trigger
     // Do something with response data
@@ -18,6 +17,7 @@ axios.interceptors.response.use(function (response) {
     return Promise.reject(error);
   });
 
+/* -------------------------------- */
 
 const run = (job) => {
   const {url, method, data, headers: _h, response} = job
@@ -34,11 +34,13 @@ const run = (job) => {
  return axios({
     url,
     method,
-    data,
+    data: ['post', 'put'].includes(method) ? data : null,
+    // data,
     headers,
-    timeout: 10000,
+    timeout: 30000,
   })
 }
+/* -------------------------------- */
 
 const invoke = (job, { root, data, headers }) => {
   const url = resolver.resolveUrl(job.path, root)
@@ -48,20 +50,16 @@ const invoke = (job, { root, data, headers }) => {
 
   return run({ url, method: job.method, data: body, headers, response: job.response })
 }
+/* -------------------------------- */
 
 runner.parallel = async (jobs, {root, data, headers}) => {
   headers['Authorization'] = signToken(root.userId)
 
-  const promises = jobs.map(job => 
-     invoke(job, {root, data, headers})
-  )
+  const promises = jobs.map(job => invoke(job, {root, data, headers}))
 
   let status = 200
   const results = (await Promise.all(promises)).map((x, i) => {
-    console.log({x: x.data.length,i}, jobs[i].response)
-    if (!jobs[i].response) {
-      return x.data
-    }
+    if (!jobs[i].response) return x.data 
 
     if (x.data.code && x.data.code !== '0000') {
       status = 400
@@ -76,26 +74,42 @@ runner.parallel = async (jobs, {root, data, headers}) => {
   return { data: crushed, status }
 }
 
+/* -------------------------------- */
+
 runner.waterfall = async (jobs, {root, data, headers}) => {
   headers['Authorization'] = signToken(root.userId)
 
-  let out = []
+  let status = 200
+  let results = {}
+  let context = root
+  for (const [ i, job ] of jobs.entries()) {
+    console.log(' ==>', job)
+    const x = await invoke(job, {root: context, data, headers})
+    if (job.delay && !isNaN(job.delay)) {
+      await sleep(job.delay)
+    }
+    console.log(i, '  :>', job.method, job.path, x.data)
+    if (!jobs[i].response) {
+      return x.data
+    }
 
-  for (const job of jobs) {
-    console.log('\n==>', job, {data,root})
-    const url = resolver.resolveUrl(job.path, root)
-    const res = await run({ url, method: job.method, data, headers, response: job.response })
-    out.push(res)
+    if (x.data.code && x.data.code !== '0000') {
+      status = 400
+      if (jobs[i].error_response) {
+        jobs[i].response = jobs[i].error_response
+      }
+      else return x.data
+    }
+    const resolved = resolver.resolveObj(jobs[i].response, {...context, ...x.data})
+
+    context = { ...context, ...x.data }
+    results = { ...results, ...resolved }
+
+    if (status !== 200) break
   }
-  return out
-}
-module.exports = runner
 
-// let out = {}
-// for (const key in jobs[i].response) {
-//   const resolved = JSONPath({path: jobs[i].response[key], json: {...root, ...x.data}});
-//   out[key] = resolved.length ? resolved : jobs[i].response[key]
-//   if (Array.isArray(out[key]) && out[key].length === 1) out[key] = out[key][0]
-// }
-// return out
+  return { data: results, status }
+}
+
+module.exports = runner
 

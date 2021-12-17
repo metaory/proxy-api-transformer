@@ -1,22 +1,26 @@
-// const {JSONPath} = require('jsonpath-plus');
-const jwt = require('jsonwebtoken')
 const transform = require('jsonpath-object-transform');
 
 const config = require('../config')
 const runner = require('./runner')
+const helper = require('./helper')
+
 const { log, clear } = console
 // const log = (msg, ...extra) => console.log(JSON.stringify(msg, null, 2), extra)
 
 const API_KEYS = { // TODO read from DB/Properties
-  '00000000-0000-0000-0000-000000000000': 'TENANT A',
+  '0912535a-5d76-4c6e-8f30-c0bc54f78074': 'PARTNER A',
+  'eb55f55a-fb36-428a-9cfd-1208c649ea88': 'PARTNER B',
+  'f85d81da-153a-41a3-924c-3e8515ac9fb3': 'PARTNER C',
 }
 
 module.exports.init = async (event, ctx) => {
   const { headers, queryStringParameters, httpMethod, pathParameters: {proxy} } = event
   log `+++++++++++++++++++++++++++++`
+  debugger
 
   const data = JSON.parse(event.body)
-  const root = { query: queryStringParameters || {}, body: data || {}, headers, jwt: {}, partner: 'NA', userId: 'NA' }
+  const crushedData = helper.crushObj(data)
+  const root = { query: queryStringParameters || {}, body: crushedData || {}, headers, jwt: {}, partner: 'NA', userId: 'NA' }
 
   const key = `${httpMethod}:${proxy}`
   const cfg = { ...config[key] }
@@ -29,13 +33,7 @@ module.exports.init = async (event, ctx) => {
 
   root.partner = API_KEYS[headers['x-api-key']]
   root.userId = headers['x-user-id']
-
-  // Set $.jwt.* context
-  if (headers['Authorization']) {
-    const [,token] = headers['Authorization'].split(' ')
-    const decoded = jwt.decode(token,{complete: true}) || {}
-    root.jwt = decoded.payload || {}
-  }
+  root.jwt = helper.decodeJwt(headers)
 
   log({key, proxy},cfg, {root})
 
@@ -54,8 +52,9 @@ module.exports.init = async (event, ctx) => {
     status = res.status
   }
   catch (err) {
-    console.error('ERR', err)
+    console.log('ERR:message', err.message)
     const { response } = err
+    console.log('ERR:response', err.response)
     return {
       headers: { 'Access-Control-Allow-Origin': '*', },
       statusCode: response ? response.status : 500,
@@ -64,7 +63,7 @@ module.exports.init = async (event, ctx) => {
   }
 
   // Transform final result
-  if (cfg.transform) {
+  if (cfg.transform && status === 200) {
     log('Running Transform', cfg.transform)
     switch (typeof cfg.transform) {
       case 'object': log('Running Object Transform')
