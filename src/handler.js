@@ -8,9 +8,9 @@ const { log, clear } = console
 // const log = (msg, ...extra) => console.log(JSON.stringify(msg, null, 2), extra)
 
 const API_KEYS = { // TODO read from DB/Properties
-  '0912535a-5d76-4c6e-8f30-c0bc54f78074': 'PARTNER A',
-  'eb55f55a-fb36-428a-9cfd-1208c649ea88': 'PARTNER B',
-  'f85d81da-153a-41a3-924c-3e8515ac9fb3': 'PARTNER C',
+  '00000000-0000-0000-0000-000000000000': 'PARTNER A',
+  '11111111-1111-1111-1111-111111111111': 'PARTNER B',
+  '22222222-2222-2222-2222-222222222222': 'PARTNER C',
 }
 
 module.exports.init = async (event, ctx) => {
