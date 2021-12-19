@@ -1,7 +1,7 @@
 const axios = require('axios')
 const {JSONPath} = require('jsonpath-plus');
 const resolver = require('./resolver')
-const signToken = require('./service/legacyToken')
+const signToken = (userId) => jwt.sign({ userId, foo: 'bar' }, 'shhhhh');
 
 const sleep = (ms = 100) => new Promise(resolve => setTimeout(() => resolve(), ms))
 const runner = {}
