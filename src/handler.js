@@ -13,7 +13,7 @@ const API_KEYS = { // TODO read from DB/Properties
   '22222222-2222-2222-2222-222222222222': 'PARTNER C',
 }
 
-module.exports.init = async (event, ctx) => {
+module.exports.init = async (event) => {
   const { headers, queryStringParameters, httpMethod, pathParameters: {proxy} } = event
   log `+++++++++++++++++++++++++++++`
   debugger
@@ -26,10 +26,9 @@ module.exports.init = async (event, ctx) => {
   const cfg = { ...config[key] }
   console.log(headers)
 
-  // 404
   if (!Object.keys(cfg).length) return { statusCode: 404 }
-  // 403
   if (!Object.keys(API_KEYS).includes(headers['x-api-key'])) return { statusCode: 403 }
+  if (!headers['x-user-id']) return { statusCode: 401 }
 
   root.partner = API_KEYS[headers['x-api-key']]
   root.userId = headers['x-user-id']
@@ -48,7 +47,7 @@ module.exports.init = async (event, ctx) => {
   let out, status
   try {
     const res = await runner[runnerFlow](cfg.jobs, {root, data, headers})
-    out = res.data
+    out = { ok: res.data.ok || true, ...res.data }
     status = res.status
   }
   catch (err) {

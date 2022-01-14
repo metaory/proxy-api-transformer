@@ -28,8 +28,6 @@ resolver.resolveObj = (obj, data) => {
     else {
       const [ result ] = JSONPath({path: obj[cur], json: data})
       if (result !== undefined) acc[cur] = result
-      // acc[cur] = { ...acc[cur], ...result }
-      // if (result) acc[cur] = result
     }
 
     return acc
