@@ -8,20 +8,16 @@ provider:
   lambdaHashingVersion: 20201221
   region: ap-southeast-1
   role: ${self:custom.config.lambdaRoleArn}
-  apiGateway:
-    restApiId:
-      "Fn::ImportValue": stageApiGateway-restApiId
-    restApiRootResourceId:
-      "Fn::ImportValue": stageApiGateway-rootResourceId
-    restApiResources:
-      /al:
-        "Fn::ImportValue": stageApiGateway-alParentResourceId
+  environment:
+    APP_ENV: ${self:custom.stage}
 functions:
   abstraction:
     handler: src/handler.init
+    environment:
+      BASE_URL: ${self:custom.config.baseUrl}
     events:
-     - http:
-         path: al/{proxy+}
+     - httpApi:
+         path: /{proxy+}
          method: any
 
 plugins:
