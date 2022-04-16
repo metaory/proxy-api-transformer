@@ -12,8 +12,8 @@ const crushObj = helper.crushObj = (obj = {}) => Object.keys(obj || {}).reduce((
 /* -------------------------------- */
 
 helper.decodeJwt = (headers) => {
-  if (headers['Authorization']) {
-    const [,token] = headers['Authorization'].split(' ')
+  if (headers['authorization']) {
+    const [,token] = headers['authorization'].split(' ')
     const decoded = jwt.decode(token,{complete: true}) || { payload: {} }
     return decoded.payload || {}
   }

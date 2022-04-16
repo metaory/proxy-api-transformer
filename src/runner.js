@@ -7,16 +7,20 @@ const signToken = (userId) => jwt.sign({ userId, foo: 'bar' }, 'shhhhh');
 const sleep = (ms = 100) => new Promise(resolve => setTimeout(() => resolve(), ms))
 const runner = {}
 
-// Customize Error Handling
-axios.interceptors.response.use(function(response) {
-  console.log('@RES', response.data)
+axios.interceptors.request.use(config => ({ ...config, startTime: new Date() }), Promise.reject)
 
-  const { data: { code: name, debug: [message] = [] } } = response
+axios.interceptors.response.use(response => {
+  console.debug('@RES', response.data)
+
+  const { data: { code: name, debug: [message] = [] } = { code: 'NA' } } = response
   const errorMap = ErrorMap[name]
 
-  // Custom Api status response logic
+  response.config.endTime = new Date()
+  response.duration = response.config.endTime - response.config.startTime
+
   if (name && name !== '0000') {
     response.data = {
+      ...response.data,
       ok: false,
       status: 400,
       debug_id: name,
@@ -26,16 +30,33 @@ axios.interceptors.response.use(function(response) {
     }
     response.status = response.data.status
     delete response.data.status
+    delete response.data.debug
+    delete response.data.code
+    delete response.data.data
   }
 
-  console.log('@RE2', response.data)
+  console.debug('@RE2', response.data)
   return response;
-}, function(error) {
-  console.log('@ERR', error.response)
+}, error => {
+  console.error(error)
+  const { response: { data, statusText, status } } = error
+
+  error.config.endTime = new Date();
+  error.duration = error.config.endTime - error.config.startTime;
+
+  let message = statusText, debug_id, etc = {}
+
+  if (data.code && data.debug && Array.isArray(data.debug)) {
+    message = data.debug[0]
+    debug_id = data.code
+  }
+  else {
+    if (data.data && !Object.keys(data.data).length) delete data.data
+    if (data.code) etc = { ...data }
+  }
+
   return Promise.resolve({
-    data: {
-      ok: false, message: error.response.statusText, code: error.response.status,
-    },
+    data: { ok: false, message, debug_id, ...etc },
     status: error.response.status
   });
 });
@@ -43,36 +64,44 @@ axios.interceptors.response.use(function(response) {
 /* -------------------------------- */
 
 const run = (job) => {
-  const { url, method, data, headers: _h, response } = job
+  const { url, method, data, headers: _h } = job
 
   const headers = {
     Accept: '*/*',
-    ...(_h.Authorization ? { Authorization: _h.Authorization } : {})
+    ...(_h.Authorization ? { Authorization: _h.Authorization } : {}),
   }
 
   return axios({
     url,
     method,
+    // Exclude body for post/put requests
     data: ['post', 'put'].includes(method) ? data : null,
     headers,
-    timeout: 30000,
+    timeout: 20000,
   })
 }
 /* -------------------------------- */
 
-const invoke = (job, { root, data, headers }) => {
-  const url = resolver.resolveUrl(job.path, root)
+const invoke = (job, { root, headers }) => {
+  // Mock response when no Job path defined
+  if (!job.path) { return Promise.resolve({ ok: true, data: job.response }) }
 
-  let body = data
-  if (job.request) { body = resolver.resolveObj(job.request, root) }
-  console.log('BODY', '==', body)
+  // Resolve any variable in url config
+  const resolvedUrl = resolver.resolveUrl(job.path, root)
 
-  return run({ url, method: job.method, data: body, headers, response: job.response })
+  // Remove any null value along with its keys from querystring
+  const url = resolver.sanatizeUrl(resolvedUrl)
+
+  // Resolve request body if config is defined
+  const body = job.request ? resolver.resolveObj(job.request, root) : null
+
+  // Return job execution promise
+  return run({ url, method: job.method, data: body, headers })
 }
 /* -------------------------------- */
-
 runner.parallel = async (jobs, { root, data, headers }) => {
-  headers['Authorization'] = signToken(root.userId)
+  // Forward Bearer token or sign new
+  headers['Authorization'] = headers['authorization'] || signToken(root.userId)
 
   const promises = jobs.map(job => invoke(job, { root, data, headers }))
 
@@ -92,19 +121,19 @@ runner.parallel = async (jobs, { root, data, headers }) => {
 /* -------------------------------- */
 
 runner.waterfall = async (jobs, { root, data, headers }) => {
-  headers['Authorization'] = signToken(root.userId)
+  // Forward Bearer token or sign new
+  headers['Authorization'] = headers['authorization'] || signToken(root.userId)
 
   let status = 200
   let results = {}
   let context = root
 
   for (const [i, job] of jobs.entries()) {
-    console.log(' ==>', job)
     const x = await invoke(job, { root: context, data, headers })
     if (job.delay && !isNaN(job.delay)) {
       await sleep(job.delay)
     }
-    console.log(i, '  :>', job.method, job.path, x.data)
+
     if (!jobs[i].response) {
       return { data: x.data, status }
     }
