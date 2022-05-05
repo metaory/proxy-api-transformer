@@ -10,7 +10,6 @@ const runner = {}
 axios.interceptors.request.use(config => ({ ...config, startTime: new Date() }), Promise.reject)
 
 axios.interceptors.response.use(response => {
-  console.debug('@RES', response.data)
 
   const { data: { code: name, debug: [message] = [] } = { code: 'NA' } } = response
   const errorMap = ErrorMap[name]
@@ -35,7 +34,6 @@ axios.interceptors.response.use(response => {
     delete response.data.data
   }
 
-  console.debug('@RE2', response.data)
   return response;
 }, error => {
   console.error(error)

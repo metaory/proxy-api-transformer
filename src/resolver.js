@@ -1,4 +1,4 @@
-const {JSONPath} = require('jsonpath-plus')
+const { JSONPath } = require('jsonpath-plus')
 const querystring = require('querystring');
 const resolver = {}
 
@@ -17,7 +17,7 @@ resolver.resolveUrl = (tpl, data) => {
 
     const seg = url.substring(a + 1, b)
 
-    const [ result ] = JSONPath({path: seg, json: data})
+    const [result] = JSONPath({ path: seg, json: data })
 
     url = url.replace(`{${seg}}`, result || null)
   }
@@ -27,23 +27,23 @@ resolver.resolveUrl = (tpl, data) => {
 
 resolver.resolveObj = (obj, data) => {
   if (typeof obj === 'string') {
-    const [ result ] = JSONPath({path: obj, json: data})
+    const [result] = JSONPath({ path: obj, json: data })
     return result
   }
   return Object.keys(obj).reduce((acc, cur) => {
-    console.log({cur}, typeof obj[cur], ':', obj[cur])
+    console.log({ cur }, typeof obj[cur], ':', obj[cur])
 
     // Recursively resolve objects
     if (obj[cur] && typeof obj[cur] === 'object' && !Array.isArray(obj[cur])) {
       acc[cur] = resolver.resolveObj(obj[cur], data)
     }
     else if (String(obj[cur]).startsWith('{')) {
-      const result  = resolver.resolveUrl(obj[cur], data)
+      const result = resolver.resolveUrl(obj[cur], data)
       // Exclude undefined fields
       if (result !== undefined) acc[cur] = result
     }
     else if (String(obj[cur]).startsWith('$')) {
-      const [ result ] = JSONPath({path: obj[cur], json: data})
+      const [result] = JSONPath({ path: obj[cur], json: data })
       // Exclude undefined fields
       if (result !== undefined) acc[cur] = result
     }

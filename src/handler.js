@@ -34,7 +34,6 @@ exports.handler = async (event) => {
   const isUserIdValid = !!headers['x-user-id']
   const isBearer = root.isBearer = 'authorization' in headers
   const isPublic = cfg.public || false
-  console.log({ isNotFound, isApiKeyValid, isUserIdValid, isBearer, isPublic })
 
   if (isNotFound) return { statusCode: 404, body: JSON.stringify({ message: 'Not Found' }) }
   if (!isBearer && !isPublic) {
@@ -61,15 +60,11 @@ exports.handler = async (event) => {
   let out, status
   try {
     const res = await runner[runnerFlow](cfg.jobs, { root, data, headers })
-    console.log({ res })
     out = res.data
     status = res.status
   }
   catch (err) {
-    console.trace(err)
-    console.log('ERR:message', err.message)
     const { response } = err
-    console.log('ERR:response', err.response)
 
     return {
       headers: { 'Access-Control-Allow-Origin': '*', },
